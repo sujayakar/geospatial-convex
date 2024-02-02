@@ -3,6 +3,7 @@ import "./App.css";
 import { api } from "../convex/_generated/api";
 
 import "leaflet/dist/leaflet.css";
+import markerUrl from "leaflet/dist/images/marker-icon.png";
 import {
   MapContainer,
   Marker,
@@ -20,7 +21,7 @@ import {
   greatCircleDistance,
   vertexToLatLng,
 } from "h3-js";
-import { LatLng } from "leaflet";
+import { Icon, LatLng } from "leaflet";
 import { useQuery } from "convex/react";
 import { Doc } from "../convex/_generated/dataModel";
 import { Button, Dropdown, MenuProps } from "antd";
@@ -52,7 +53,6 @@ function LocationSearch(props: {
       latLongtoArray(bounds.getSouthEast()),
     ];
   }, [bounds]);
-  console.log(props.price, props.rating);
   const results = useQuery(api.search.default, {
     polygon: queryPolygon,
     maxRows: 256,
@@ -101,11 +101,15 @@ function LocationSearch(props: {
   );
 }
 
+const icon = new Icon({
+  iconUrl: markerUrl,
+});
+
 function SearchResult(props: { row: Doc<"locations"> }) {
   const { row } = props;
   const { latitude, longitude } = row.coordinates;
   return (
-    <Marker position={[latitude, longitude]}>
+    <Marker position={[latitude, longitude]} icon={icon}>
       <Popup>
         <h2>
           <a href={row.url}>{row.name}</a>
