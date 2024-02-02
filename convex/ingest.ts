@@ -16,7 +16,7 @@ export const ingestMany = mutation({
   },
 });
 
-const INDEX_BATCH_SIZE = 100;
+const INDEX_BATCH_SIZE = 512;
 
 export const indexPage = internalMutation({
   args: {
@@ -27,11 +27,12 @@ export const indexPage = internalMutation({
     console.time("indexPage");
     const results = await ctx.db
       .query("locations")
+      .withIndex("by_id" as any)
       .paginate({ cursor: args.cursor, numItems: INDEX_BATCH_SIZE });
     for (const location of results.page) {
       const locationIndex = {
         locationId: location._id,
-        geospatial: indexLatLong(location.coordinates),
+        geospatial: await indexLatLong(location.coordinates),
 
         isClosed: location.isClosed,
         price: location.price,
@@ -106,7 +107,7 @@ export const ingestRestaurant = mutation({
 
     const locationIndex = {
       locationId,
-      geospatial: indexLatLong(location.coordinates),
+      geospatial: await indexLatLong(location.coordinates),
 
       isClosed: location.isClosed,
       price: location.price,

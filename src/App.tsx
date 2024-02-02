@@ -31,45 +31,11 @@ import { Button, Dropdown, MenuProps } from "antd";
 
 const manhattan = [40.746, -73.985];
 
-// // <Polygon pathOptions={{ color: "red" }} positions={polygon} />
-// const polygon = [
-//   [40.76075, -73.9932],
-//   [40.76278, -73.99098],
-//   [40.76149, -73.98772],
-//   [40.75817, -73.98959],
-// ];
-
-// const tiling = [
-//   "8a2a10725b17fff",
-//   "8a2a10725b0ffff",
-//   "8a2a10725b07fff",
-//   "8a2a1072586ffff",
-//   "8a2a10725b37fff",
-//   "8a2a10725b2ffff",
-//   "8a2a10725b27fff",
-// ];
-// const tilingPolygons = [];
-// for (const cell of tiling) {
-//   const polygon = [];
-//   for (const vertex of cellToVertexes(cell)) {
-//     const coords = vertexToLatLng(vertex);
-//     polygon.push(coords);
-//   }
-//   tilingPolygons.push(polygon);
-// }
-
-// https://www.yelp.com/dataset/download
-// Text search: name + category name
-// Geospatial: within viewport, maybe drag a rectangle?
-// Filters:
-// - Is open
-// - price: 1, 2, 3, 4
-// - rating: 4.5+, 4+
-// - category:
-//
-// UI: Render category, phone, image, price, name, rating, review count, transactions, url, neighborhood...
-
-function LocationSearch(props: { rating?: string; price?: string }) {
+function LocationSearch(props: {
+  rating?: string;
+  price?: string;
+  setLoading: (loading: boolean) => void;
+}) {
   const map = useMap();
   const [bounds, setBounds] = useState(map.getBounds());
   useMapEvents({
@@ -89,7 +55,7 @@ function LocationSearch(props: { rating?: string; price?: string }) {
   console.log(props.price, props.rating);
   const results = useQuery(api.search.default, {
     polygon: queryPolygon,
-    maxRows: 100,
+    maxRows: 256,
     price: props.price,
     minimumRating: props.rating ? parseFloat(props.rating) : undefined,
   });
@@ -105,6 +71,7 @@ function LocationSearch(props: { rating?: string; price?: string }) {
   //   hex9: getHexagonEdgeLengthAvg(9, UNITS.m) / width,
   //   hex10: getHexagonEdgeLengthAvg(10, UNITS.m) / width,
   // });
+  props.setLoading(results === undefined);
 
   const stickyResults = useRef(results);
   if (results !== undefined) {
@@ -163,6 +130,7 @@ function SearchResult(props: { row: Doc<"locations"> }) {
   );
 }
 function App() {
+  const [loading, setLoading] = useState(true);
   const [price, setPrice] = useState<string | undefined>();
   const priceOnClick: MenuProps["onClick"] = ({ key }) => {
     setPrice(key === "any" ? undefined : key);
@@ -226,7 +194,15 @@ function App() {
   return (
     <>
       <h1>Convex Maps</h1>
-      <div>
+      <div
+        style={{
+          marginBottom: "10px",
+          display: "flex",
+          justifyContent: "center",
+          gap: "10px",
+          position: "relative",
+        }}
+      >
         <Dropdown
           menu={{ items: priceItems, onClick: priceOnClick }}
           placement="bottomLeft"
@@ -241,6 +217,11 @@ function App() {
         >
           <Button>⭐ Minimum Rating {rating ? `(${rating}+)` : ""}</Button>
         </Dropdown>
+        {loading && (
+          <span style={{ position: "absolute", right: 0 }}>
+            <i>Loading...</i>
+          </span>
+        )}
       </div>
 
       <MapContainer center={manhattan} id="mapId" zoom={15}>
@@ -248,89 +229,10 @@ function App() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        <LocationSearch price={price} rating={rating} />
+        <LocationSearch price={price} rating={rating} setLoading={setLoading} />
       </MapContainer>
     </>
   );
 }
 
 export default App;
-
-{
-  /* <DropdownMenu.Root>
-<DropdownMenu.Trigger>
-  💸 Price <TriangleDownIcon />
-</DropdownMenu.Trigger>
-<DropdownMenu.Content>
-  <DropdownMenu.Item>🤷 Any</DropdownMenu.Item>
-  <DropdownMenu.Item>$</DropdownMenu.Item>
-  <DropdownMenu.Item>$$</DropdownMenu.Item>
-  <DropdownMenu.Item>$$$</DropdownMenu.Item>
-  <DropdownMenu.Item>$$$$</DropdownMenu.Item>
-</DropdownMenu.Content>
-</DropdownMenu.Root>
-<DropdownMenu.Root>
-<DropdownMenu.Trigger>
-  ⭐ Rating <TriangleDownIcon />
-</DropdownMenu.Trigger>
-<DropdownMenu.Content>
-  <DropdownMenu.Item>
-    <CheckIcon />
-    🤷 Any
-  </DropdownMenu.Item>
-  <DropdownMenu.Item>
-    2.0 <StarFilledIcon /> <StarFilledIcon /> <StarIcon />{" "}
-    <StarIcon /> <StarIcon />
-  </DropdownMenu.Item>
-  <DropdownMenu.Item>
-    2.5 <StarFilledIcon /> <StarFilledIcon /> <CrumpledPaperIcon />{" "}
-    <StarIcon /> <StarIcon />
-  </DropdownMenu.Item>
-  <DropdownMenu.Item>
-    3.0 <StarFilledIcon /> <StarFilledIcon /> <StarFilledIcon />{" "}
-    <StarIcon /> <StarIcon />
-  </DropdownMenu.Item>
-  <DropdownMenu.Item>
-    3.5 <StarFilledIcon /> <StarFilledIcon />
-    <StarFilledIcon /> <CrumpledPaperIcon /> <StarIcon />
-  </DropdownMenu.Item>
-  <DropdownMenu.Item>
-    4.0 <StarFilledIcon /> <StarFilledIcon /> <StarFilledIcon />{" "}
-    <StarFilledIcon /> <StarIcon />
-  </DropdownMenu.Item>
-  <DropdownMenu.Item>
-    4.5 <StarFilledIcon /> <StarFilledIcon />
-    <StarFilledIcon /> <StarFilledIcon /> <CrumpledPaperIcon />
-  </DropdownMenu.Item>
-</DropdownMenu.Content>
-</DropdownMenu.Root>
-<Select.Root>
-<Select.Trigger className="SelectTrigger">
-  <Select.Icon className="SelectIcon">
-    😋 Category <TriangleDownIcon />
-  </Select.Icon>
-</Select.Trigger>
-<Select.Portal>
-  <Select.Content className="SelectContent">
-    <Select.ScrollUpButton className="SelectScrollButton">
-      <ChevronUpIcon />
-    </Select.ScrollUpButton>
-    <Select.Viewport className="SelectViewport">
-      <Select.SelectItem value="all" key="all">
-        🤷 Any
-      </Select.SelectItem>
-      {popularCategories.map((c) => {
-        return (
-          <Select.SelectItem value={c.alias} key={c.alias}>
-            {c.emoji} {c.title}
-          </Select.SelectItem>
-        );
-      })}
-    </Select.Viewport>
-    <Select.ScrollDownButton className="SelectScrollButton">
-      <ChevronDownIcon />
-    </Select.ScrollDownButton>
-  </Select.Content>
-</Select.Portal>
-</Select.Root> */
-}

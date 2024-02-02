@@ -1,12 +1,32 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { maxResolution } from "./h3";
+import { encodeH3Cell, maxResolution } from "./h3";
 import {
   UNITS,
   getHexagonEdgeLengthAvg,
   greatCircleDistance,
+  gridDisk,
   polygonToCells,
 } from "h3-js";
+
+type Point = [number, number];
+
+function polygonContains(point: Point, polygon: Array<Point>) {
+  let contains = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0];
+    const yi = polygon[i][1];
+    const xj = polygon[j][0];
+    const yj = polygon[j][1];
+    const intersect =
+      yi > point[1] !== yj > point[1] &&
+      point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi;
+    if (intersect) {
+      contains = !contains;
+    }
+  }
+  return contains;
+}
 
 export default query({
   args: {
@@ -33,14 +53,25 @@ export default query({
       }
     }
     console.log("resolution", resolution);
-    const h3Cells = polygonToCells(args.polygon, resolution);
-    if (h3Cells.length > 16) {
-      throw new Error("Too many cells");
+    const h3CellSet = new Set<string>();
+    for (const cell of polygonToCells(args.polygon, resolution)) {
+      h3CellSet.add(cell);
+      for (const neighbor of gridDisk(cell, 1)) {
+        h3CellSet.add(neighbor);
+      }
     }
-    const indexRows = await ctx.db
+    let h3Cells = [...h3CellSet];
+    if (h3Cells.length > 16) {
+      console.warn("Too many cells", h3Cells.length, "reducing to 16");
+      h3Cells = h3Cells.slice(0, 16);
+    }
+
+    const convexCells = await Promise.all([...h3Cells].map(encodeH3Cell));
+    console.timeLog("search", "done encoding");
+    const searchQuery = ctx.db
       .query("locationIndex")
       .withSearchIndex("index", (q) => {
-        let search = q.search("geospatial", h3Cells.join(" "));
+        let search = q.search("geospatial", convexCells.join(" "));
         if (args.isClosed !== undefined) {
           search = search.eq("isClosed", args.isClosed);
         }
@@ -66,28 +97,46 @@ export default query({
           }
         }
         return search;
-      })
-      .take(args.maxRows ?? 10);
+      });
+
+    const indexRows = [];
+    for await (const indexRow of searchQuery) {
+      if (indexRows.length === 0) {
+        console.timeLog("search", "first result");
+      }
+      indexRows.push(indexRow);
+      if (indexRows.length >= 1023) {
+        break;
+      }
+    }
+    console.timeLog("search", `loaded ${indexRows.length} from search index`);
 
     const rows = [];
     let skipped = 0;
     for (const indexRow of indexRows) {
-      if (!h3Cells.find((c) => indexRow.geospatial.includes(c))) {
-        skipped += 1;
-        continue;
+      if (rows.length >= (args.maxRows ?? 100)) {
+        break;
       }
       const location = await ctx.db.get(indexRow.locationId);
       if (location === null) {
         throw new Error(`Invalid locationId: ${indexRow.locationId}`);
       }
+      const p: Point = [
+        location.coordinates.latitude,
+        location.coordinates.longitude,
+      ];
+      if (!polygonContains(p, args.polygon as any)) {
+        skipped += 1;
+        continue;
+      }
       rows.push(location);
     }
-    if (skipped > 0) {
-      console.warn(`Skipping ${skipped} post-filter match(es)`);
-    }
-    console.timeEnd("search");
+    console.timeLog(
+      "search",
+      `Returning ${rows.length} results (skipped ${skipped})`
+    );
     return {
-      h3Cells,
+      h3Cells: [...h3Cells],
       rows,
     };
   },
