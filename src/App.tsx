@@ -25,6 +25,7 @@ import { Icon, LatLng } from "leaflet";
 import { useQuery } from "convex/react";
 import { Doc } from "../convex/_generated/dataModel";
 import { Button, Dropdown, MenuProps } from "antd";
+import { Point } from "../geospatial/types";
 
 // https://superface.ai/blog/google-maps-clone
 // https://react-leaflet.js.org/docs/example-events/
@@ -32,11 +33,7 @@ import { Button, Dropdown, MenuProps } from "antd";
 
 const manhattan = [40.746, -73.985];
 
-function LocationSearch(props: {
-  rating?: string;
-  price?: string;
-  setLoading: (loading: boolean) => void;
-}) {
+function LocationSearch(props: { setLoading: (loading: boolean) => void }) {
   const map = useMap();
   const [bounds, setBounds] = useState(map.getBounds());
   useMapEvents({
@@ -45,21 +42,21 @@ function LocationSearch(props: {
     },
   });
   const queryPolygon = useMemo(() => {
-    const latLongtoArray = (latLong: LatLng) => [latLong.lat, latLong.lng];
+    const latLongToObj = (latLong: LatLng) => ({
+      latitude: latLong.lat,
+      longitude: latLong.lng,
+    });
     return [
-      latLongtoArray(bounds.getSouthWest()),
-      latLongtoArray(bounds.getNorthWest()),
-      latLongtoArray(bounds.getNorthEast()),
-      latLongtoArray(bounds.getSouthEast()),
+      latLongToObj(bounds.getSouthWest()),
+      latLongToObj(bounds.getNorthWest()),
+      latLongToObj(bounds.getNorthEast()),
+      latLongToObj(bounds.getSouthEast()),
     ];
   }, [bounds]);
   const results = useQuery(api.search.default, {
     polygon: queryPolygon,
     maxRows: 256,
-    price: props.price,
-    minimumRating: props.rating ? parseFloat(props.rating) : undefined,
   });
-
   // const p1 = queryPolygon[0];
   // const p2 = queryPolygon[1];
   // const width = greatCircleDistance(p1, p2, UNITS.m);
@@ -92,7 +89,11 @@ function LocationSearch(props: {
   return (
     <>
       {tilingPolygons.map((polygon, i) => (
-        <Polygon key={i} pathOptions={{ color: "blue" }} positions={polygon} />
+        <Polygon
+          key={i}
+          pathOptions={{ color: "blue" }}
+          positions={polygon as any}
+        />
       ))}
       {stickyResults.current.rows.map((row) => (
         <SearchResult key={row._id} row={row} />
@@ -105,96 +106,23 @@ const icon = new Icon({
   iconUrl: markerUrl,
 });
 
-function SearchResult(props: { row: Doc<"locations"> }) {
+function SearchResult(props: {
+  row: Doc<"locations2"> & { coordinates: Point };
+}) {
   const { row } = props;
   const { latitude, longitude } = row.coordinates;
   return (
     <Marker position={[latitude, longitude]} icon={icon}>
       <Popup>
         <h2>
-          <a href={row.url}>{row.name}</a>
+          <a>{row.name}</a>
         </h2>
-        <img width={100} src={row.imageUrl} alt={row.name} />
-        <ul>
-          {row.isClosed && (
-            <li>
-              <i>Closed</i>
-            </li>
-          )}
-          {row.category && <li>Category: {row.category?.title}</li>}
-          <li>Neighborhood: {row.neighborhood}</li>
-          <li>Phone: {row.displayPhone}</li>
-          <li>Price: {row.price}</li>
-          <li>
-            Rating: {row.rating} ({row.reviewCount} reviews)
-          </li>
-        </ul>
       </Popup>
     </Marker>
   );
 }
 function App() {
   const [loading, setLoading] = useState(true);
-  const [price, setPrice] = useState<string | undefined>();
-  const priceOnClick: MenuProps["onClick"] = ({ key }) => {
-    setPrice(key === "any" ? undefined : key);
-  };
-  const priceItems: MenuProps["items"] = [
-    {
-      key: "any",
-      label: "Any",
-    },
-    {
-      key: "$",
-      label: "$",
-    },
-    {
-      key: "$$",
-      label: "$$",
-    },
-    {
-      key: "$$$",
-      label: "$$$",
-    },
-    {
-      key: "$$$$",
-      label: "$$$$",
-    },
-  ];
-  const [rating, setRating] = useState<string | undefined>();
-  const ratingOnClick: MenuProps["onClick"] = ({ key }) => {
-    setRating(key === "any" ? undefined : key);
-  };
-  const ratingItems: MenuProps["items"] = [
-    {
-      key: "any",
-      label: "Any",
-    },
-    {
-      key: "2.0",
-      label: "2.0 ★★☆☆☆",
-    },
-    {
-      key: "2.5",
-      label: "2.5 ★★✺☆☆",
-    },
-    {
-      key: "3.0",
-      label: "3.0 ★★★☆☆",
-    },
-    {
-      key: "3.5",
-      label: "3.5 ★★★✺☆",
-    },
-    {
-      key: "4.0",
-      label: "4.0 ★★★★☆",
-    },
-    {
-      key: "4.5",
-      label: "4.5 ★★★★✺",
-    },
-  ];
   return (
     <>
       <h1>Convex Maps</h1>
@@ -207,20 +135,6 @@ function App() {
           position: "relative",
         }}
       >
-        <Dropdown
-          menu={{ items: priceItems, onClick: priceOnClick }}
-          placement="bottomLeft"
-          arrow
-        >
-          <Button>💸 Price {price ? `(${price})` : ""}</Button>
-        </Dropdown>
-        <Dropdown
-          menu={{ items: ratingItems, onClick: ratingOnClick }}
-          placement="bottomLeft"
-          arrow
-        >
-          <Button>⭐ Minimum Rating {rating ? `(${rating}+)` : ""}</Button>
-        </Dropdown>
         {loading && (
           <span style={{ position: "absolute", right: 0 }}>
             <i>Loading...</i>
@@ -233,7 +147,7 @@ function App() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        <LocationSearch price={price} rating={rating} setLoading={setLoading} />
+        <LocationSearch setLoading={setLoading} />
       </MapContainer>
     </>
   );

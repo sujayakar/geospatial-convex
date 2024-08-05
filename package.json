@@ -11,12 +11,13 @@
   },
   "dependencies": {
     "antd": "^5.13.3",
-    "convex": "^1.8.0",
+    "convex": "file:../convex/npm-packages/convex/convex-1.13.2.tgz",
     "h3-js": "^4.1.0",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "d3-array": "^3.2.4"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.8",
