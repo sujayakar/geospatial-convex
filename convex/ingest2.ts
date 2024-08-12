@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { app, internalAction, internalMutation } from "./_generated/server";
+import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { geospatial } from ".";
 
 export const loadRestaurants = internalAction({
   handler: async (ctx) => {
@@ -76,10 +77,7 @@ export const flushBatch = internalMutation({
         alias: row.alias,
         imageUrl: row.image_url,
       });
-      await ctx.runMutation(app.geospatial.insert, {
-        key: id,
-        coordinates: row.coordinates,
-      });
+      await geospatial.insert(ctx, id, row.coordinates);
     }
   },
 });

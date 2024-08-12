@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { app, query } from "./_generated/server";
+import { query } from "./_generated/server";
 import { Point, point } from "../geospatial/types.js";
 import { Id } from "./_generated/dataModel";
+import { geospatial } from ".";
 
 export default query({
   args: {
@@ -9,12 +10,10 @@ export default query({
     maxRows: v.number(),
   },
   async handler(ctx, args) {
-    const { h3Cells, results } = await ctx.runQuery(
-      app.geospatial.queryRectangle,
-      {
-        rectangle: args.polygon,
-        maxRows: args.maxRows,
-      }
+    const { results, h3Cells } = await geospatial.queryRectangle(
+      ctx,
+      args.polygon,
+      args.maxRows
     );
     const coordinatesByKey = new Map<string, Point>();
     const rowFetches = [];

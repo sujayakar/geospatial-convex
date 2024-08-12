@@ -150,33 +150,45 @@ export type DatabaseWriter = GenericDatabaseWriter<DataModel>;
 
 export declare const app: {
   geospatial: {
-    get: FunctionReference<
-      "query",
-      "internal",
-      { key: string },
-      { latitude: number; longitude: number } | null
-    >;
-    insert: FunctionReference<
-      "mutation",
-      "internal",
-      { coordinates: { latitude: number; longitude: number }; key: string },
-      null
-    >;
-    queryRectangle: FunctionReference<
-      "query",
-      "internal",
-      {
-        maxRows: number;
-        rectangle: Array<{ latitude: number; longitude: number }>;
-      },
-      {
-        h3Cells: Array<string>;
-        results: Array<{
+    ops: {
+      get: FunctionReference<
+        "query",
+        "internal",
+        { key: string },
+        { latitude: number; longitude: number } | null
+      >;
+      insert: FunctionReference<
+        "mutation",
+        "internal",
+        {
           coordinates: { latitude: number; longitude: number };
           key: string;
-        }>;
-      }
-    >;
-    remove: FunctionReference<"mutation", "internal", { key: string }, boolean>;
+          maxResolution: number;
+        },
+        null
+      >;
+      queryRectangle: FunctionReference<
+        "query",
+        "internal",
+        {
+          maxResolution: number;
+          maxRows: number;
+          rectangle: Array<{ latitude: number; longitude: number }>;
+        },
+        {
+          h3Cells: Array<string>;
+          results: Array<{
+            coordinates: { latitude: number; longitude: number };
+            key: string;
+          }>;
+        }
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { key: string; maxResolution: number },
+        boolean
+      >;
+    };
   };
 };

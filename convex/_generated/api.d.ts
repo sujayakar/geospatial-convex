@@ -9,9 +9,7 @@
  * @module
  */
 
-import type * as constants from "../constants.js";
-import type * as h3 from "../h3.js";
-import type * as ingest from "../ingest.js";
+import type * as index from "../index.js";
 import type * as ingest2 from "../ingest2.js";
 import type * as search from "../search.js";
 
@@ -29,9 +27,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  constants: typeof constants;
-  h3: typeof h3;
-  ingest: typeof ingest;
+  index: typeof index;
   ingest2: typeof ingest2;
   search: typeof search;
 }>;

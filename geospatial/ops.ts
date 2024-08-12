@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { componentArg, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { functions } from "./_generated/api";
 import { point } from "./types";
 import { latLngToCells, polygonContains } from "./geometry";
@@ -12,26 +12,26 @@ import {
 } from "h3-js";
 import { shuffle } from "d3-array";
 
-const DEFAULT_MAX_RESOLUTION = 14;
-
 export const insert = mutation({
   args: {
     key: v.string(),
     coordinates: point,
+    maxResolution: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const existing = await ctx.runQuery(functions.index.get, { key: args.key });
+    const existing = await ctx.runQuery(functions.ops.get, { key: args.key });
     if (existing !== null) {
-      await ctx.runMutation(functions.index.remove, { key: args.key });
+      await ctx.runMutation(functions.ops.remove, {
+        key: args.key,
+        maxResolution: args.maxResolution,
+      });
     }
     const locationId = await ctx.db.table("locations").insert({
       key: args.key,
       coordinates: args.coordinates,
     });
-    const resolution =
-      componentArg(ctx, "maxResolution") ?? DEFAULT_MAX_RESOLUTION;
-    const cells = latLngToCells(resolution, args.coordinates);
+    const cells = latLngToCells(args.maxResolution, args.coordinates);
     for (const h3Cell of cells) {
       await ctx.db.table("locationIndex").insert({
         h3Cell,
@@ -59,6 +59,7 @@ export const get = query({
 export const remove = mutation({
   args: {
     key: v.string(),
+    maxResolution: v.number(),
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
@@ -71,8 +72,7 @@ export const remove = mutation({
       return false;
     }
 
-    const resolution =
-      componentArg(ctx, "maxResolution") ?? DEFAULT_MAX_RESOLUTION;
+    const resolution = args.maxResolution;
     for (const cell of latLngToCells(resolution, row.coordinates)) {
       const indexRow = await ctx.db
         .table("locationIndex")
@@ -96,6 +96,7 @@ export const queryRectangle = query({
   args: {
     rectangle: v.array(point),
     maxRows: v.number(),
+    maxResolution: v.number(),
   },
   returns: v.object({
     results: v.array(
@@ -116,8 +117,7 @@ export const queryRectangle = query({
       [args.rectangle[1].latitude, args.rectangle[1].longitude],
       UNITS.m
     );
-    let resolution =
-      componentArg(ctx, "maxResolution") ?? DEFAULT_MAX_RESOLUTION;
+    let resolution = args.maxResolution;
     for (; resolution >= 0; resolution--) {
       const hexWidth = getHexagonEdgeLengthAvg(resolution, UNITS.m);
       if (hexWidth / polygonWidth > 0.25) {

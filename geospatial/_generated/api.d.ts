@@ -9,8 +9,9 @@
  * @module
  */
 
+import type * as client from "../client.js";
 import type * as geometry from "../geometry.js";
-import type * as index from "../index.js";
+import type * as ops from "../ops.js";
 import type * as types from "../types.js";
 
 import type { ApiFromModules, FunctionReference } from "convex/server";
@@ -23,7 +24,8 @@ import type { ApiFromModules, FunctionReference } from "convex/server";
  * ```
  */
 declare const functions: ApiFromModules<{
+  client: typeof client;
   geometry: typeof geometry;
-  index: typeof index;
+  ops: typeof ops;
   types: typeof types;
 }>;
